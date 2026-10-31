@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#159447"><title>Sonu Live GPS</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--green:#159447;--dark:#116b36;--bg:#f3faf5;--ink:#173322;--muted:#718477}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:15px system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+header{background:linear-gradient(120deg,#159447,#0d7438);color:white;padding:22px 18px 25px;border-radius:0 0 24px 24px}
+.top{display:flex;justify-content:space-between;align-items:center}.brand{font-size:21px;font-weight:800}.pill{background:#ffffff25;border:1px solid #ffffff55;border-radius:30px;padding:6px 11px;font-size:12px}
+header h1{font-size:25px;margin:24px 0 4px}header p{margin:0;color:#e2f6e9}
+main{max-width:760px;margin:auto;padding:16px}.card{background:white;border:1px solid #e0eee4;border-radius:18px;padding:16px;margin:0 0 14px;box-shadow:0 5px 18px #174b2510}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.muted{color:var(--muted);font-size:13px}
+#map{height:300px;border-radius:14px;background:#e7f1e9;z-index:0;margin-top:12px}
+button{border:0;border-radius:12px;background:var(--green);color:white;padding:12px 15px;font-weight:700;font-size:14px;cursor:pointer}
+button.secondary{background:#eaf6ed;color:var(--dark)}button.stop{background:#fff0ef;color:#b52b24}
+button:disabled{opacity:.5;cursor:not-allowed}.status{display:flex;align-items:center;gap:8px;font-weight:700}.dot{width:9px;height:9px;border-radius:50%;background:#9aa99e}.dot.on{background:#16a34a;box-shadow:0 0 0 4px #16a34a20}
+input{width:100%;padding:12px;border:1px solid #d8e6dc;border-radius:11px;font:inherit;margin:7px 0 10px}
+.actions{display:flex;gap:9px;flex-wrap:wrap}.actions button{flex:1}.big{font-size:25px;font-weight:800;color:var(--green)}footer{text-align:center;color:var(--muted);font-size:12px;padding:16px}
+@media(min-width:620px){#map{height:380px}}
+</style></head>
+<body>
+<header><div class="top"><div class="brand">📍 Sonu Live GPS</div><span class="pill">WHITE & GREEN</span></div><h1>Your location, your choice.</h1><p>Share your live location only with people you trust.</p></header>
+<main>
+<section class="card"><div class="row"><div><strong>My live location</strong><div class="muted">GPS access is controlled by you</div></div><div class="status"><span id="dot" class="dot"></span><span id="state">Not sharing</span></div></div>
+<div id="map" aria-label="Map showing your location"></div><p id="coords" class="muted">Your location has not been accessed.</p>
+<div class="actions"><button id="start">Start sharing my location</button><button id="stop" class="stop" disabled>Stop</button></div><p class="muted">This preview shows your own device location. Cross-device friend sharing will be enabled after secure cloud setup.</p></section>
+<section class="card"><strong>Connect with friends</strong><p class="muted">Invite-code feature preview. A friend must accept and enable sharing before their location can be shown.</p><label for="invite">Friend invite code</label><input id="invite" placeholder="Enter invite code" maxlength="12"><button class="secondary" id="connect">Connect friend</button><p id="inviteMsg" class="muted" aria-live="polite"></p></section>
+<section class="card"><div class="row"><div><strong>Privacy & safety</strong><div class="muted">You stay in control</div></div><span style="font-size:25px">🛡️</span></div><ul class="muted"><li>Location permission is requested only when you tap Start.</li><li>Tap Stop any time to end location updates.</li><li>No person can be tracked secretly through this app.</li></ul></section>
+</main><footer>Sonu Live GPS · Early web preview</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map').setView([20.5937,78.9629],5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+let marker=null,circle=null,watchId=null;
+const state=document.getElementById('state'),dot=document.getElementById('dot'),coords=document.getElementById('coords');
+function stop(){if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}state.textContent='Not sharing';dot.classList.remove('on');document.getElementById('start').disabled=false;document.getElementById('stop').disabled=true}
+document.getElementById('start').onclick=()=>{
+ if(!('geolocation'in navigator)){coords.textContent='GPS is not supported by this browser.';return}
+ if(!window.isSecureContext){coords.textContent='For GPS access, open this site using HTTPS.';return}
+ state.textContent='Requesting permission…';
+ watchId=navigator.geolocation.watchPosition(pos=>{
+  const {latitude,longitude,accuracy}=pos.coords;const point=[latitude,longitude];
+  if(!marker)marker=L.marker(point).addTo(map).bindPopup('Your device');
+  marker.setLatLng(point);if(!circle)circle=L.circle(point,{radius:accuracy,color:'#159447',fillOpacity:.08}).addTo(map);else circle.setLatLng(point).setRadius(accuracy);
+  map.setView(point,16);coords.textContent='Latitude: '+latitude.toFixed(5)+' · Longitude: '+longitude.toFixed(5)+' · Accuracy: about '+Math.round(accuracy)+' m';
+  state.textContent='Sharing on this device';dot.classList.add('on');document.getElementById('start').disabled=true;document.getElementById('stop').disabled=false;
+ },err=>{coords.textContent=({1:'Location permission was denied.',2:'Your location is unavailable.',3:'GPS request timed out.'})[err.code]||err.message;stop()},{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+};
+document.getElementById('stop').onclick=stop;
+document.getElementById('connect').onclick=()=>{const v=document.getElementById('invite').value.trim();document.getElementById('inviteMsg').textContent=v?'Friend connections are not active in this preview yet. Secure cloud setup is required.':'Please enter an invite code.'};
+</script></body></html>
